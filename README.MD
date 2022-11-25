@@ -49,8 +49,12 @@ In that file, you must fill in the values for the following variables:
 **MERAKI_API_KEY**: This should contain your Meraki API key (details at https://developer.cisco.com/meraki/scanning-api/#!enable-scanning-api/enable-scanning-api)<br/>
 **ORG_IDS**: An array with the Organization IDs you wish to use from which to consider all encompassing networks to search for access points.<br/>
 **validators**: An array with the validator keys that can be found in the Meraki dashboard by navigating to Network-wide > General. Scroll down to “Location and Analytics” to copy and paste the validator key for each organization you are configuring into code (ensure analytics and scanning API are enabled)<br/>
+**secrets**: An array with the secrets that can be found in the Meraki dashboard by navigating to Network-wide > General. Scroll down to “Location and Analytics” to copy and paste the secret key for each organization you are configuring into code (ensure analytics and scanning API are enabled)<br/>
 **entranceAPs**: This is an array of access point names that are considered "External" to the store or right at the entrance.  
 **internalAPs**: This is an array of access point names that are considered "Internal" to the store to be able to determine that a visitor actually entered the store if detected by them.  
+
+More details on validators and secrets for the scanning-api can be found here: https://developer.cisco.com/meraki/scanning-api/#!enable-scanning-api/enable-location-api  
+ 
 
 ---
 ## Local machine configuration and Meraki Location analytics Access point Setup

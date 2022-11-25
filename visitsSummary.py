@@ -20,6 +20,9 @@ or implied.
 from datetime import datetime
 from pytz import timezone
 import csv
+import sys
+from config import ORG_IDS, MERAKI_API_KEY
+import meraki
 from config import initialRSSIThreshold, \
                     minMinutesVisit, \
                     theTimeZone, \
@@ -28,6 +31,59 @@ from config import initialRSSIThreshold, \
 
 csvinputfile = None
 csvoutputfile = None
+
+dashboard = meraki.DashboardAPI(api_key=MERAKI_API_KEY)
+
+def retrieveClientData(first_time_seen):
+    # Get list of organizations to which API key has access
+    organizations = dashboard.organizations.getOrganizations()
+    client_ips={}
+    # Iterate through list of orgs
+    for org in organizations:
+        print(f'\nAnalyzing organization {org["name"]}:')
+        org_id = org['id']
+        #skip org if not speficied in list
+        if org_id not in ORG_IDS:
+            print(f'Skipping org id: {org_id}')
+            continue
+        # Get list of networks in organization
+        try:
+            networks = dashboard.organizations.getOrganizationNetworks(org_id)
+        except meraki.APIError as e:
+            print(f'Meraki API error: {e}')
+            print(f'status code = {e.status}')
+            print(f'reason = {e.reason}')
+            print(f'error = {e.message}')
+            continue
+        except Exception as e:
+            print(f'some other error: {e}')
+            continue
+
+        # Iterate through networks
+        total = len(networks)
+        counter = 1
+        print(f'  - iterating through {total} networks in organization {org_id}')
+        for net in networks:
+            print(f'Finding clients in network {net["name"]} ({counter} of {total})')
+            try:
+                # Get list of clients on network, filtering on timespan of last 14 days
+                clients = dashboard.networks.getNetworkClients(net['id'], t0=first_time_seen, perPage=1000, total_pages='all') #TODO: set timespan to match data in readings
+            except meraki.APIError as e:
+                print(f'Meraki API error: {e}')
+                print(f'status code = {e.status}')
+                print(f'reason = {e.reason}')
+                print(f'error = {e.message}')
+            except Exception as e:
+                print(f'some other error: {e}')
+            else:
+                if clients:
+                    #print(clients)
+                    print(f'  - found {len(clients)}')
+                    for client in clients:
+                        client_ips[client['mac']]=client['ip']
+            counter += 1
+    return client_ips
+
 
 
 def timestamp_converter(time) :
@@ -49,8 +105,11 @@ if __name__ == '__main__':
     fieldnamesin = ['NETNAME', 'APNAME', 'APMAC', 'CLIENT_MAC', 'time', 'rssi']
     externalObservations={}
     internalVisits={}
-    fieldnamesout = ['NETNAME', 'CLIENT_MAC', 'external_ap_name','internal_ap_name','start_inside_date', 'start_inside_time','length_mins']
+    fieldnamesout = ['NETNAME', 'CLIENT_MAC','client_ip', 'external_ap_name','internal_ap_name','start_inside_date', 'start_inside_time','length_mins']
 
+    
+
+    first_time_seen=''
 
     # capture all strong (95+rssi>15) readings from Entrance APs with timestamp into externalObservations
     # (using client mac as key)  
@@ -81,6 +140,8 @@ if __name__ == '__main__':
                     aStrongReading['NETNAME'] = row['NETNAME']
                     aStrongReading['APNAME'] = row['APNAME']
                     externalObservations[clientMAC].append(aStrongReading)
+                    if first_time_seen=='':
+                        first_time_seen=row['time']
                 if (row['APNAME'] in internalAPs):
                     #This reading is for an internal AP, but we are only interested in those we saw earlier
                     #also on entranceAPs
@@ -113,6 +174,9 @@ if __name__ == '__main__':
     print("Done reading and mapping, starting to generate summary file...")
     print("dict of internal Visits:\n", internalVisits)
 
+    # First, we retrieve enough client data to map IP addresses to MAC addresses of clients, if they associated
+    clients_ips=retrieveClientData(first_time_seen)
+    
     #fieldnamesout = ['NETNAME', 'CLIENT_MAC', 'external_ap_name','internal_ap_name','start_inside_date', 'start_inside_time','length_mins']
     with open('visitsSummary.csv', 'w', newline='') as csvoutputfile:
         localTZ = timezone(theTimeZone)
@@ -129,9 +193,13 @@ if __name__ == '__main__':
 
                 if theVisitLength>=minMinutesVisit:
                     print("Network which meets visit length:", internalVisits[theKey]['first_entered']['NETNAME'],'\n')
-
+                    #TODO: use variable "theKey" to query meraki dashboard API to find out if there is a client IP
+                    # associated to it and, if so, write out new column indicating it was "connected"
+                    # use GET /networks/{networkId}/clients to obtain the list of clients for a time period (the time period
+                    # in the capture data) and try to determine an association
                     writer.writerow({'NETNAME': internalVisits[theKey]['first_entered']['NETNAME'],
                                         'CLIENT_MAC': theKey,
+                                        'client_ip': clients_ips[theKey] if theKey in clients_ips else '',
                                         'external_ap_name': internalVisits[theKey]['first_entered']['EXTAPNAME'],
                                         'internal_ap_name': internalVisits[theKey]['latest']['APNAME'],
                                         'start_inside_date': theLocalTime.strftime('%m/%d/%Y'),

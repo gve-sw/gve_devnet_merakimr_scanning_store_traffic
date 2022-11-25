@@ -1,5 +1,5 @@
 """
-Copyright (c) 2021 Cisco and/or its affiliates.
+Copyright (c) 2022 Cisco and/or its affiliates.
 This software is licensed to you under the terms of the Cisco Sample
 Code License, Version 1.1 (the "License"). You may obtain a copy of the
 License at
@@ -25,7 +25,7 @@ from datetime import datetime
 import csv
 import shutil
 import json, requests, os, time
-from config import ORG_IDS, MERAKI_API_KEY, validators
+from config import ORG_IDS, MERAKI_API_KEY, validators, secrets
 
 from pytz import timezone
 from config import theTimeZone
@@ -36,7 +36,7 @@ csvoutputfile = None
 
 ############## USER DEFINED SETTINGS ###############
 # MERAKI SETTINGS
-secrets = ["123456789"] #only 1 if only 1 org
+#secrets = ["123456789"] #only 1 if only 1 org
 
 version = "3.0" # This code was written to support the CMX JSON version specified
 csvfile = None

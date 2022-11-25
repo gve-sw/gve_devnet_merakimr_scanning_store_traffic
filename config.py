@@ -2,6 +2,7 @@
 MERAKI_API_KEY = "ffxxx"
 ORG_IDS = ["999999"] #Only need 1 if only 1 org
 validators = ["bbdcssxx"] #Only need 1 if only 1 org
+secrets = ["123456789"] #Only need 1 if only 1 org
 
 
 #these are the parameters and thresholds used by the cmxsummary.py script, change as you desire
